@@ -16,6 +16,10 @@ ASCII_TABLE = {
     ' ': 32
 }
 
+ASCII_INV = {}
+for caracter in ASCII_TABLE:
+    ASCII_INV[ASCII_TABLE[caracter]] = caracter
+
 def decimal_a_binario(n):
     if n == 0:
         return "0"
@@ -48,8 +52,50 @@ def texto_a_ascii_binario_manual(texto):
 
     return resultado
 
+def binario_a_decimal(binario):
+    decimal = 0
+    potencia = 0
+
+    # recorremos de derecha a izquierda
+    for bit in reversed(binario):
+        if bit == '1':
+            decimal += 2 ** potencia
+        potencia += 1
+
+    return decimal
+
+def ascii_binario_a_texto_manual(lista_binarios):
+    texto = ""
+
+    for binario in lista_binarios:
+        if len(binario) != 8:
+            raise ValueError(f"Bloque inválido: {binario}")
+
+        ascii_decimal = binario_a_decimal(binario)
+
+        if ascii_decimal not in ASCII_INV:
+            raise ValueError(f"Código ASCII no soportado: {ascii_decimal}")
+
+        texto += ASCII_INV[ascii_decimal]
+
+    return texto
+
+binarios = [
+    "01001000",
+    "01101111",
+    "01101100",
+    "01100001"
+]
+
+# Texto a binario
 texto = "Hola"
 binario = texto_a_ascii_binario_manual(texto)
 
 for c, b in zip(texto, binario):
     print(f"{c} -> {b}")
+
+# Binario a texto
+texto = ascii_binario_a_texto_manual(binarios)
+print(texto)
+
+
