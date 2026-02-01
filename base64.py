@@ -1,198 +1,211 @@
+from binario import (
+    decimal_a_binario,
+    rellenar_a_n_bits,
+    es_binario,
+    dividir_en_bytes,
+    ascii_binario_a_texto,
+    texto_a_ascii_binario
+)
+
 BASE64_TABLE = (
     "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
     "abcdefghijklmnopqrstuvwxyz"
     "0123456789+/"
 )
 
-ASCII_TABLE = {
-    'A': 65, 'B': 66, 'C': 67, 'D': 68,
-    'E': 69, 'F': 70, 'G': 71, 'H': 72,
-    'I': 73, 'J': 74, 'K': 75, 'L': 76,
-    'M': 77, 'N': 78, 'O': 79, 'P': 80,
-    'Q': 81, 'R': 82, 'S': 83, 'T': 84,
-    'U': 85, 'V': 86, 'W': 87, 'X': 88,
-    'Y': 89, 'Z': 90,
-    'a': 97, 'b': 98, 'c': 99, 'd': 100,
-    'e': 101, 'f': 102, 'g': 103, 'h': 104,
-    'i': 105, 'j': 106, 'k': 107, 'l': 108,
-    'm': 109, 'n': 110, 'o': 111, 'p': 112,
-    'q': 113, 'r': 114, 's': 115, 't': 116,
-    'u': 117, 'v': 118, 'w': 119, 'x': 120,
-    'y': 121, 'z': 122,
-    ' ': 32
-}
 
-# invertimos: decimal -> carácter
-ASCII_INV = {}
-for c in ASCII_TABLE:
-    ASCII_INV[ASCII_TABLE[c]] = c
+def _base64_indice(caracter):
+    """Busca manualmente el índice de un caracter en BASE64_TABLE."""
+    indice = 0
+    for simbolo in BASE64_TABLE:
+        if simbolo == caracter:
+            return indice
+        indice += 1
+    return -1
 
 
-def decimal_a_binario_6_bits(n):
-    bits = ""
+def _indice_a_6_bits(indice):
+    """Convierte un número (0..63) a binario de 6 bits, manual."""
+    b = decimal_a_binario(indice)
+    return rellenar_a_n_bits(b, 6)
 
-    while n > 0:
-        bits = str(n % 2) + bits
-        n = n // 2
 
-    # Relleno a 6 bits
-    while len(bits) < 6:
-        bits = "0" + bits
-
-    return bits
-
-def base64_a_binario_manual(texto_base64):
-    resultado = []
-
-    for caracter in texto_base64:
-        # ignoramos padding
-        if caracter == "=":
+def _limpiar_base64(s):
+    """Quita espacios/saltos por si vienen en el input."""
+    limpio = ""
+    for c in s:
+        if c in [' ', '\n', '\t', '\r']:
             continue
+        limpio += c
+    return limpio
 
-        # buscar índice en la tabla Base64
-        indice = 0
-        encontrado = False
-
-        for simbolo in BASE64_TABLE:
-            if simbolo == caracter:
-                encontrado = True
-                break
-            indice += 1
-
-        if not encontrado:
-            raise ValueError(f"Carácter Base64 inválido: {caracter}")
-
-        # convertir índice a binario (6 bits)
-        binario = decimal_a_binario_6_bits(indice)
-        resultado.append(binario)
-
-    return resultado
-
-binarios = base64_a_binario_manual("TQ==")
-
-for b in binarios:
-    print(b)
-
-def binario_a_decimal_6_bits(binario):
-    decimal = 0
-    potencia = 0
-
-    for bit in reversed(binario):
-        if bit == '1':
-            decimal += 2 ** potencia
-        potencia += 1
-
-    return decimal
-
-def dividir_en_bloques_de_6(binario):
-    bloques = []
-    i = 0
-
-    while i < len(binario):
-        bloque = binario[i:i+6]
-
-        if len(bloque) < 6:
-            bloque = bloque + "0" * (6 - len(bloque))
-
-        bloques.append(bloque)
-        i += 6
-
-    return bloques
-
-def binario_a_base64_manual(binario):
-    bloques = dividir_en_bloques_de_6(binario)
-    resultado = ""
-
-    for bloque in bloques:
-        indice = binario_a_decimal_6_bits(bloque)
-        resultado += BASE64_TABLE[indice]
-
-    # cálculo simple de padding (=)
-    resto = len(binario) % 24
-    if resto == 8:
-        resultado += "=="
-    elif resto == 16:
-        resultado += "="
-
-    return resultado
-
-base64 = binario_a_base64_manual("01001101")
-print(base64)
-
-def decimal_a_binario_6(n):
-    bits = ""
-    while n > 0:
-        bits = str(n % 2) + bits
-        n = n // 2
-
-    while len(bits) < 6:
-        bits = "0" + bits
-
-    return bits
 
 def base64_a_binario(texto_base64):
-    binario = ""
+    """
+    BASE64 -> BINARIO (de bytes, múltiplo de 8).
+    Maneja padding '=' correctamente.
 
-    for caracter in texto_base64:
-        if caracter == "=":
-            continue
+    Devuelve un string binario concatenado.
+    """
+    s = _limpiar_base64(texto_base64)
 
-        indice = 0
-        encontrado = False
+    if len(s) == 0:
+        return ""
 
-        for simbolo in BASE64_TABLE:
-            if simbolo == caracter:
-                encontrado = True
-                break
-            indice += 1
+    if len(s) % 4 != 0:
+        raise ValueError("Base64 inválido: la longitud debe ser múltiplo de 4")
 
-        if not encontrado:
-            raise ValueError(f"Carácter Base64 inválido: {caracter}")
+    # Validación básica de '=': solo permitido al final (máximo 2)
+    padding_total = 0
+    if s.endswith("=="):
+        padding_total = 2
+    elif s.endswith("="):
+        padding_total = 1
 
-        binario += decimal_a_binario_6(indice)
+    # Si hay '=', debe estar solo en el último bloque
+    if "=" in s[:-4]:
+        raise ValueError("Base64 inválido: '=' solo puede aparecer en el último bloque")
 
-    return binario
+    salida = ""
 
-def dividir_en_bytes(binario):
-    bytes_ = []
     i = 0
+    while i < len(s):
+        bloque = s[i:i+4]
+        i += 4
 
-    while i + 8 <= len(binario):
-        bytes_.append(binario[i:i+8])
-        i += 8
+        # contar padding en este bloque (solo puede ser 0,1,2)
+        pad = 0
+        for c in bloque:
+            if c == "=":
+                pad += 1
 
-    return bytes_
+        if pad not in (0, 1, 2):
+            raise ValueError("Base64 inválido: padding incorrecto")
 
-def binario_a_decimal(binario):
-    decimal = 0
-    potencia = 0
+        # convertir 4 chars -> 24 bits (6 bits c/u). '=' se trata como 0 en bits.
+        bits24 = ""
+        for c in bloque:
+            if c == "=":
+                bits24 += "000000"
+            else:
+                idx = _base64_indice(c)
+                if idx == -1:
+                    raise ValueError(f"Carácter Base64 inválido: {c}")
+                bits24 += _indice_a_6_bits(idx)
 
-    for bit in reversed(binario):
-        if bit == '1':
-            decimal += 2 ** potencia
-        potencia += 1
+        # cortar bits inválidos según padding:
+        # pad=0 -> 24 bits (3 bytes)
+        # pad=1 -> 16 bits (2 bytes)
+        # pad=2 -> 8 bits  (1 byte)
+        if pad == 0:
+            salida += bits24
+        elif pad == 1:
+            salida += bits24[:16]
+        else:  # pad == 2
+            salida += bits24[:8]
 
-    return decimal
+    # Aseguramos múltiplo de 8 para bytes
+    if len(salida) % 8 != 0:
+        raise ValueError("Error interno: binario resultante no es múltiplo de 8")
 
-def bytes_ascii_a_texto(lista_bytes):
-    texto = ""
+    return salida
 
-    for byte in lista_bytes:
-        decimal = binario_a_decimal(byte)
 
-        if decimal not in ASCII_INV:
-            raise ValueError(f"ASCII no soportado: {decimal}")
+def binario_a_base64(binario):
+    """
+    BINARIO (múltiplo de 8) -> BASE64.
+    Maneja padding '=' correctamente.
+    Acepta binario con espacios/saltos; los ignora.
+    """
+    # limpiar binario (permitir separadores)
+    compacto = ""
+    for c in binario:
+        if c in ['0', '1']:
+            compacto += c
+        elif c in [' ', '\n', '\t', '\r']:
+            continue
+        else:
+            raise ValueError(f"Carácter inválido en binario: {repr(c)}")
 
-        texto += ASCII_INV[decimal]
+    if len(compacto) == 0:
+        return ""
 
-    return texto
+    if not es_binario(compacto):
+        raise ValueError("La entrada debe ser binaria (solo 0 y 1)")
 
-def base64_a_ascii_manual(texto_base64):
-    binario = base64_a_binario(texto_base64)
-    bytes_ = dividir_en_bytes(binario)
-    texto = bytes_ascii_a_texto(bytes_)
-    return texto
+    if len(compacto) % 8 != 0:
+        raise ValueError("La longitud del binario debe ser múltiplo de 8 para convertir a Base64")
 
-resultado = base64_a_ascii_manual("SG9sYQ==")
-print(resultado)
+    bytes_ = dividir_en_bytes(compacto)
 
+    resultado = ""
+    j = 0
+    while j < len(bytes_):
+        # tomar hasta 3 bytes (24 bits)
+        bloque_bytes = bytes_[j:j+3]
+        j += 3
+
+        n_bytes = len(bloque_bytes)
+        bits24 = "".join(bloque_bytes)
+
+        # si faltan bytes, rellenar con ceros hasta 24 bits
+        if n_bytes < 3:
+            bits24 += "0" * (8 * (3 - n_bytes))
+
+        # 24 bits -> 4 grupos de 6 bits -> índices Base64
+        grupos6 = [bits24[k:k+6] for k in range(0, 24, 6)]
+        indices = []
+        for g in grupos6:
+            # convertir 6-bit binario a decimal manualmente
+            dec = 0
+            pot = 0
+            for bit in reversed(g):
+                if bit == '1':
+                    dec += 2 ** pot
+                pot += 1
+            indices.append(dec)
+
+        # armar 4 caracteres base64
+        chars = ""
+        for idx in indices:
+            chars += BASE64_TABLE[idx]
+
+        # aplicar padding según bytes reales:
+        # 3 bytes -> 0 '='
+        # 2 bytes -> 1 '='
+        # 1 byte  -> 2 '='
+        if n_bytes == 3:
+            resultado += chars
+        elif n_bytes == 2:
+            resultado += chars[:3] + "="
+        else:  # n_bytes == 1
+            resultado += chars[:2] + "=="
+
+    return resultado
+
+
+def base64_a_ascii(texto_base64):
+    """
+    BASE64 -> ASCII pasando por BINARIO (bytes).
+    """
+    b = base64_a_binario(texto_base64)
+    return ascii_binario_a_texto(b, acepta_espacios=False)
+
+
+def ascii_a_base64(texto):
+    """
+    ASCII -> BINARIO -> BASE64 (útil para pruebas / completitud).
+    """
+    b = texto_a_ascii_binario(texto)  # binario concatenado
+    return binario_a_base64(b)
+
+
+if __name__ == "__main__":
+    print("Base64->bin:", base64_a_binario("TQ=="))          # 'M' = 01001101
+    print("Bin->Base64:", binario_a_base64("01001101"))      # TQ==
+    print("Base64->ASCII:", base64_a_ascii("SG9sYQ=="))      # Hola
+    print("ASCII->Base64:", ascii_a_base64("Hola"))          # SG9sYQ==
+
+# Referencias
+# OpenAI. (2026). ChatGPT (versión del 28 de enero) [Modelo de lenguaje de gran tamaño]. https://chat.openai.com/
+# Utilizado como referencia para funciones de cifrado y tabla Base64.
