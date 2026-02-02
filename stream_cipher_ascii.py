@@ -201,3 +201,8 @@ if __name__ == "__main__":
     p2 = descifrar_base64_con_llave_dinamica(c2, clave_maestra, nonce)
     print("Cipher Base64:", c2)
     print("Plain:", p2)
+
+
+# Referencias
+# OpenAI. (2026). ChatGPT (versión del 28 de enero) [Modelo de lenguaje de gran tamaño]. https://chat.openai.com/
+# Utilizado como apoyo para generación de llaves dinámicas.
